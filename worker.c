@@ -46,50 +46,6 @@ void worker_init(void)
 	ge_initeightpoint();
 }
 
-static void makeyggaddress(char *dst,size_t dstlen,u8 *counter,const u8 *pk)
-{
-	u8 ones = 0,bits = 0,done = 0,nbits = 0;
-	u8 invpk[PUBLIC_LEN];
-	u8 addr[16] = {0};
-	// first byte is prefix, second is counter
-	u8 *aptr = &addr[2];
-	size_t alen = sizeof(addr) - 2;
-
-	memcpy(invpk,pk,PUBLIC_LEN);
-	for (size_t i; i < PUBLIC_LEN; i++)
-		invpk[i] = ~invpk[i];
-
-	for(int i = 0; i < 8 * PUBLIC_LEN; i++) {
-
-		u8 bit = (invpk[i >> 3] & (0x80 >> (i & 7))) >> (7 - (i & 7));
-
-		if (!done) {
-			if (bit != 0)
-				ones++;
-			else
-				done = 1;
-
-			continue;
-		}
-
-		bits = (bits << 1) | bit;
-		nbits++;
-		if (nbits == 8) {
-			nbits = 0;
-			*aptr++ = bits;
-			alen--;
-			if (!alen)
-				break;
-		}
-	}
-	addr[0] = 0x02; // prefix
-	addr[1] = ones; // counter
-	*counter = ones;
-
-	if (!inet_ntop(AF_INET6,addr,dst,dstlen))
-		abort();
-}
-
 static void yggready(const u8 *secret,const u8 *public)
 {
 	if (endwork)
@@ -121,11 +77,19 @@ static void yggready(const u8 *secret,const u8 *public)
 
 #endif
 
-	char addressbuf[38+1] = {0};
-	u8 counter;
-	makeyggaddress(addressbuf,sizeof(addressbuf),&counter,public);
+	unsigned long* bigpub = (unsigned long*)public;
+	u8 counter = 0;
+	for (long unsigned int i = 0; i < (PUBLIC_LEN / sizeof(unsigned long)); i++) {
+		unsigned long v = __builtin_bswap64(bigpub[i]);
+		if (v == 0) {
+			counter += 8 * sizeof(unsigned long);
+		} else {
+			counter += __builtin_clzl(v);
+			break;
+		}
+	}
 
-	output_writekey(addressbuf,public,secret,counter);
+	output_writekey(public,secret,counter);
 }
 
 #include "filters_inc.inc.h"

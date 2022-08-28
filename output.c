@@ -21,7 +21,7 @@ static const char keys_field_generated[] = "---";
 static const char keys_field_address[]   = "// Address: ";
 static const char keys_field_secretkey[] = "PrivateKey: ";
 static const char keys_field_publickey[] = "PublicKey:  ";
-static const char keys_field_compress[]  = " / Compression: ";
+static const char keys_field_compress[]  = "Compression: ";
 
 
 #define KEYS_FIELD_GENERATED_LEN (sizeof(keys_field_generated) - NULLTERM_LEN)
@@ -54,17 +54,13 @@ do { \
 
 static u8 bestCompressKnown = 0;
 
-void output_writekey(
-	const char *address,const u8 *publickey,const u8 *secretkey,u8 compress)
+void output_writekey(const u8 *publickey,const u8 *secretkey,u8 compress)
 {
 	char keysbuf[KEYS_LEN];
 	char pubkeybuf[B16_PUBKEY_LEN + NULLTERM_LEN];
 	char seckeybuf[B16_SECKEY_LEN + NULLTERM_LEN];
 	char compressbuf[COMPRESS_LEN + NULLTERM_LEN];
 	size_t offset = 0;
-
-	BUF_APPEND(keysbuf,offset,keys_field_address,KEYS_FIELD_ADDRESS_LEN);
-	BUF_APPEND(keysbuf,offset,address,ADDRESS_LEN);
 
 	BUF_APPEND(keysbuf,offset,keys_field_compress,KEYS_FIELD_COMPRESS_LEN);
 	snprintf(compressbuf,sizeof(compressbuf),"%d",(int)compress);
@@ -98,7 +94,7 @@ void output_writekey(
 
 	pthread_mutex_lock(&fout_mutex);
 
-	if (bestCompressKnown >= compress) {
+	if (bestCompressKnown > compress) {
 		goto end;
 	}
 	bestCompressKnown = compress;
